@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: jf
+      POSTGRES_PASSWORD: V3ryS#cr3t!
+    ports:
+      - '5432:5432'
+    volumes: 
+      - postgres:/var/lib/postgresql/data
+  app:
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:8080"
+    environment:
+      DB_HOST: postgres
+      DB_NAME: mydb
+      DB_USERNAME: jf
+      DB_PASSWORD: V3ryS#cr3t!
+volumes:
+  postgres:
+    driver: local
