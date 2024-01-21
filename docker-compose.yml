@@ -5,23 +5,24 @@ services:
     restart: always
     environment:
       POSTGRES_DB: mydb
-      POSTGRES_USER: jf
+      POSTGRES_USER: flaskapp
       POSTGRES_PASSWORD: V3ryS#cr3t!
     ports:
       - '5432:5432'
-    volumes: 
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
       - postgres:/var/lib/postgresql/data
   app:
     restart: always
     build:
-      context: .
+      context: ./app
       dockerfile: Dockerfile
     ports:
       - "80:8080"
     environment:
       DB_HOST: postgres
       DB_NAME: mydb
-      DB_USERNAME: jf
+      DB_USERNAME: flaskapp
       DB_PASSWORD: V3ryS#cr3t!
 volumes:
   postgres:

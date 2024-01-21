@@ -1,0 +1,15 @@
+{% include 'head.html' %}
+{% include 'header.html' %}
+<div class="row justify-content-center">
+    <div class="col-lg-4 col-md-12 mb-4 mb-lg-0">
+    {% for athlete in athletes %}
+        <div class="card bg-success text-white text-center mb-4">
+            <div class="card-body">
+                <h4>{{ athlete['user_login'] }}</h4>
+                <a href="{{ url_for('users.profile', user=athlete['user_login'])}}" class="stretched-link"></a>
+            </div>
+        </div>
+    {% endfor%}
+    </div>
+</div>
+{% include 'footer.html' %}

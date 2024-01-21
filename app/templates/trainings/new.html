@@ -1,0 +1,50 @@
+{% include 'head.html' %}
+{% include 'header.html' %}
+<script type="text/javascript">
+    function EnableDisableTextBox(chkPassport) {
+        var nameText = document.getElementById("validationCustom08");
+        var phaseText = document.getElementById("validationCustom09");
+        nameText.disabled = !chkPassport.checked;
+        phaseText.disabled = !chkPassport.checked;
+        if (!nameText.disabled) {
+            nameText.focus();
+        }
+    }
+</script>
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8 mb-8 mb-lg-10">
+        {% if msg is not none %}
+            <div style="background-color: lightgray; border-radius: 20px; padding-left: 20px; border: solid 1px grey">
+                {% if msg[0] == "error" %}
+                <h3 style="color: red">Błąd</h3>
+                <p style="color: red">{{ msg[1] }}</p>
+                {% else %}
+                <h3 style="color: green">Komunikat</h3>
+                <p style="color: green">{{ msg[1] }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+        <h4 class="text-center">Add Training</h4>
+        <form method="post" action={{ url_for('clubs.insert', shortname=shortname) }}>
+            <div class="form-group">
+                <label for="validationCustom01" class="form-label">Training Date</label>
+                <input type="date" name="date" class="form-control" id="validationCustom01" min={{ today }} value="{{ today }}" required>
+            </div>
+            <div class="form-group">
+                <label for="validationCustom02" class="form-label">Time</label>
+                <input type="time" name="time" class="form-control" id="validationCustom02" required>
+            </div>
+            <div class="form-group">
+                <label for="validationCustom03" class="form-label">Name</label>
+                <input type="text" name="name" class="form-control" id="validationCustom03" required>
+            </div>
+            <div class="form-group">
+                <label for="validationCustom04" class="form-label">Description</label>
+                <input type="textarea" name="description" class="form-control" id="validationCustom04" required>
+            </div>
+            <br/>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </form>
+    </div>
+</div>
+{% include 'footer.html' %}

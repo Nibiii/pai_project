@@ -1,0 +1,27 @@
+{% include 'head.html' %}
+{% include 'header.html' %}
+<div class="row justify-content-center"></div>
+    <div class="col-lg-6 col-md-8 mb-8 mb-lg-10">
+        {% if msg is not none %}
+        <div style="background-color: lightgray; border-radius: 20px; padding-left: 20px; border: solid 2px grey">
+            {% if msgType == "error" %}
+            <h3 style="color: red">Error</h3>
+            <p style="color: red">{{ msg }}</p>
+            {% else %}
+            <h3 style="color: green">Info</h3>
+            <p style="color: green">{{ msg }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        <h4 class="text-center">Add Picture</h4>
+        <form method="post" action={{ url_for('users.addPicture') }}  enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="picture" class="form-label">Picture</label>
+                <input type="file" name="picture" class="form-control" id="picture" required>
+            </div>
+            <br/>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </form>
+    </div>
+</div>
+{% include 'footer.html' %}

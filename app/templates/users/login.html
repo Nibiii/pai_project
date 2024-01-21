@@ -1,0 +1,43 @@
+{% include 'head.html' %}
+{% include 'header.html' %}
+<script type="text/javascript">
+    function EnableDisableTrainer() {
+        var trainer = document.getElementById("trainer");
+        var userType = document.getElementById("userType");
+        if (userType.value == "athlete") {
+            trainer.disabled = false;
+        }
+        else {
+            trainer.disabled = true;
+        }
+    }
+</script>
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8 mb-8 mb-lg-10">
+        {% if msg is not none %}
+        <div style="background-color: lightgray; border-radius: 20px; padding-left: 20px; border: solid 2px grey">
+            {% if msgType == "error" %}
+            <h3 style="color: red">Error</h3>
+            <p style="color: red">{{ msg }}</p>
+            {% else %}
+            <h3 style="color: green">Info</h3>
+            <p style="color: green">{{ msg }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        <h4 class="text-center">Login</h4>
+        <form method="post" action={{ url_for('users.login') }}>
+            <div class="form-group">
+                <label for="login">E-mail</label>
+                <input type="email" class="form-control" id="login" minlength="4" name="login" placeholder="E-mail address" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <br/>
+            <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+    </div>
+</div>
+{% include 'footer.html' %}

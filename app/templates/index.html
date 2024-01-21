@@ -1,0 +1,41 @@
+{% include 'head.html' %}
+{% include 'header.html' %}
+<div class="row justify-content-center">
+<br /><br />
+{% if clubs is none %}
+    <div class="col-lg-4 col-md-12 mb-4 mb-lg-0">
+        <div class="card bg-success text-white text-center mb-4">
+            <div class="card-body">
+                <h4>Login</h4>
+                <a href="{{ url_for('users.login', back=url_for('main'), msg=None) }}" class="stretched-link"></a>
+            </div>
+        </div>
+        <div class="card bg-success text-white text-center mb-4">
+            <div class="card-body">
+                <h4>Register</h4>
+                <a href="{{ url_for('users.register', back=url_for('main'), msg=None) }}" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="col-lg-4 col-md-12 mb-4 mb-lg-0">
+    {% if session['userType'] == "trainer" %}
+        <div class="card bg-success text-white text-center mb-4">
+            <div class="card-body">
+                <h4>My Athletes</h4>
+                <a href="{{ url_for('users.listAthletes')}}" class="stretched-link"></a>
+            </div>
+        </div>
+    {% endif %}
+    {% for club in clubs %}
+        <div class="card bg-success text-white text-center mb-4">
+            <div class="card-body">
+                <h4>{{ club['fullname']}}</h4>
+                <a href="{{ url_for('clubs.main', shortname=club['shortname'])}}" class="stretched-link"></a>
+            </div>
+        </div>
+    {% endfor%}
+    </div>
+{% endif %}
+</div>
+{% include 'footer.html' %}

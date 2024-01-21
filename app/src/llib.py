@@ -1,5 +1,12 @@
 import os, psycopg2.extras, re
+import sys, hashlib
 from passlib.hash import sha256_crypt
+
+class Response:
+    def __init__(self):
+        self.data = None
+        self.msg = ""
+        self.msgType = ""
 
 def getDbConnection():
     conn = psycopg2.connect(
@@ -23,6 +30,7 @@ def tryQuery(query, method):
             returned = cur.execute(f"INSERT INTO {query['table']} VALUES({query['condition']})")
             conn.commit()
         case "update":
+            print(f"UPDATE {query['table']} SET {query['condition']}", file=sys.stderr)
             returned = cur.execute(f"UPDATE {query['table']} SET {query['condition']}")
             conn.commit()
         case "delete":
@@ -35,35 +43,40 @@ def tryQuery(query, method):
     return returned
 
 def getTrainers():
+    ret = Response()
     query = {
         'table': 'users',
         'columns': 'login',
         'condition': 'WHERE type LIKE \'trainer\''
     }
-    trainers = tryQuery(query, 'select')
-    return trainers
+    ret.data = tryQuery(query, 'select')
+    return ret
 
 def getUserTypes():
+    ret = Response()
     query = {
         'table': 'user_types',
-        'columns': 'type'
+        'columns': '*',
+        'condition': ''
     }
-    types = tryQuery(query, 'select')
-    return types
+    ret.data = tryQuery(query, 'select')
+    return ret
 
 def getClubs():
+    ret = Response()
     query = {
         'table': 'clubs',
-        'columns': '*'
+        'columns': '*',
+        'condition': ''
     }
-    clubs = tryQuery(query, 'select')
-    return clubs
+    ret.data = tryQuery(query, 'select')
+    return ret
 
 def isMember(userLogin, clubShortname):
     query = {
-        'table': 'club_student',
+        'table': 'club_user',
         'columns': '*',
-        'condition': f'WHERE user_login LIKE \'{userLogin}\' AND club_shortname LIKE \'{clubShortname}\''
+        'condition': f'WHERE user_login LIKE \'{userLogin}\' AND club LIKE \'{clubShortname}\''
     }
     data = tryQuery(query, 'select')
     if len(data) == 1:
@@ -71,112 +84,370 @@ def isMember(userLogin, clubShortname):
     else:
         return False
     
-def getUserResults(userLogin, clubShortname):
+def getUserResults(userLogin):
+    ret = Response()
     conn = getDbConnection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     query = f"""
         SELECT t.name, t.date, t.time, t.description, r.result, g.grade
         FROM trainings t
         LEFT JOIN results r
-        ON t.id = r.id
+        ON t.id = r.training_id
         LEFT JOIN grades g
-        ON t.id = g.id
-        WHERE t.club_shortname LIKE \'{clubShortname}\'
+        ON t.id = g.training_id
+        WHERE r.user_login LIKE \'{userLogin}\'
+        AND g.user_login LIKE \'{userLogin}\';
+    """
+    cur.execute(query)
+    ret.data = cur.fetchall()
+    cur.close()
+    conn.close()
+    return ret
+    
+def getUserClubResults(userLogin, clubShortname):
+    ret = Response()
+    conn = getDbConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    query = f"""
+        SELECT t.name, t.date, t.time, t.description, r.result, g.grade
+        FROM trainings t
+        LEFT JOIN results r
+        ON t.id = r.training_id
+        LEFT JOIN grades g
+        ON t.id = g.training_id
+        WHERE t.club LIKE \'{clubShortname}\'
         AND r.user_login LIKE \'{userLogin}\'
         AND g.user_login LIKE \'{userLogin}\';
     """
     cur.execute(query)
-    results = cur.fetchall()
+    ret.data = cur.fetchall()
     cur.close()
     conn.close()
-    return results
+    return ret
 
 def getTrainings(userLogin, clubShortname):
+    ret = Response()
     query = {
         'table': 'trainings',
         'columns': '*',
-        'condition': f'WHERE user_login LIKE \'{userLogin}\' AND club_shortname LIKE \'{clubShortname}\''
+        'condition': f'WHERE trainer LIKE \'{userLogin}\' AND club LIKE \'{clubShortname}\' ORDER BY date, time ASC'
     }
-    trainings = tryQuery(query, 'select')
-    return trainings
+    ret.data = tryQuery(query, 'select')
+    return ret
 
-def getTrainingDetails(trainingId):
+def getTraining(id):
+    ret = Response()
+    query = {
+        'table': 'trainings',
+        'columns': '*',
+        'condition': f'WHERE id = {id}'
+    }
+    ret.data = tryQuery(query, 'select')
+    return ret
+
+def getTrainingGrades(trainingId):
+    ret = Response()
     conn = getDbConnection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     query = f"""
-        SELECT r.user_login, r.result, g.grade
+        SELECT COALESCE(r.user_login, g.user_login) AS user_login, COALESCE(r.training_id, g.training_id) AS training_id, r.result, g.grade
         FROM results r
-        JOIN grades g
-        ON r.user_login = g.user_login
-        WHERE training_id = {trainingId};
+        FULL OUTER JOIN grades g
+        ON r.user_login = g.user_login AND r.training_id = g.training_id
+        WHERE COALESCE(r.training_id, g.training_id) = {trainingId}
+        ORDER BY user_login DESC;
     """
     cur.execute(query)
-    trainings = cur.fetchall()
+    ret.data = cur.fetchall()
     cur.close()
     conn.close()
-    return trainings
+    return ret
     
 def login(userLogin, userPass):
+    ret = Response()
     if userLogin == "":
-        return "login cannot be empty"
+        ret.msg = "login cannot be empty"
+        ret.msgType = "error"
+        return ret
     if userPass == "":
-        return "password cannot be empty"
+        ret.msgType = "error"
+        ret.msg = "password cannot be empty"
+        return ret
+    hash_object = hashlib.sha256()
+    hash_object.update(userPass.encode())
+    hash_password = hash_object.hexdigest()
+    print(userPass, file=sys.stderr)
+    print(hash_password, file=sys.stderr)
     query = {
         'table': 'users',
         'columns': '*',
-        'condition': f'WHERE login LIKE \'{userLogin}\' AND password LIKE \'{sha256_crypt.encrypt(userPass)}\''
+        'condition': f'WHERE login LIKE \'{userLogin}\' AND password LIKE \'{hash_password}\''
     }
-    user = tryQuery(query, 'select')
-    return user
+    ret.data = tryQuery(query, 'select')
+    return ret
 
 def register(userLogin, userPass, userType, trainerLogin):
+    ret = Response()
     conn = getDbConnection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
     if userPass == "" or userLogin == "":
-        return "all fields must be filled"
+        ret.msgType = "error"
+        ret.msg = "all fields must be filled"
+        return ret
     if not re.fullmatch(regex, userLogin):
-        return "email must be valid"
+        ret.msgType = "error"
+        ret.msg = "email must be valid"
+        return ret
     if userType == "student" and trainerLogin == "":
-        return "all fields must be filled"
+        ret.msgType = "error"
+        ret.msg = "all fields must be filled"
+        return ret
+    hash_object = hashlib.sha256()
+    hash_object.update(userPass.encode())
+    hash_password = hash_object.hexdigest()
     try:
-        cur.execute(f'INSERT INTO users (login, password, type) VALUES(\'{userLogin}\', \'{sha256_crypt.encrypt(userPass)}\', \'{userType}\');')
+        cur.execute(f'INSERT INTO users (login, password, type) VALUES(\'{userLogin}\', \'{hash_password}\', \'{userType}\')')
     except:
-        return "user already exists"
-    cur.execute(f'INSERT INTO user_trainer (user_login, trainer_login) VALUES(\'{userLogin}\', \'{trainerLogin}\');')
+        ret.msgType = "error"
+        ret.msg = "user already exists"
+        return ret
+    if trainerLogin is not None:
+        cur.execute(f'INSERT INTO user_trainer (user_login, trainer_login) VALUES(\'{userLogin}\', \'{trainerLogin}\')')
+    ret.data = cur.rowcount
     conn.commit()
     cur.close()
     conn.close()
-    return None
+    return ret
 
 def deleteTraining(trainingId):
+    ret = Response()
     query = {
         'table': 'trainings',
         'condition': f'WHERE id = {trainingId}'
     }
-    return tryQuery(query, 'delete')
+    ret.data = tryQuery(query, 'delete')
+    return ret
 
-def addTraining(name, datetime, description, trainerLogin, clubShortname):
-    if name == "" or datetime is None or description == "":
-        return "all fields must be filled"
+def addTraining(name, date, time, description, trainerLogin, clubShortname):
+    ret = Response()
+    if name == "" or date is None or time is None or description == "":
+        ret.msgType = "error"
+        ret.msg = "all fields must be filled"
+        return ret
     query = {
         'table': 'trainings',
-        'condition': f'\'{name}\', \'{datetime}\', \'{description}\', \'{trainerLogin}\', \'{clubShortname}\''
+        'condition': f'DEFAULT, \'{name}\', \'{date}\', \'{time}\', \'{description}\', \'{trainerLogin}\', \'{clubShortname}\''
     }
-    return tryQuery(query, 'insert')
+    ret.data = tryQuery(query, 'insert')
+    return ret
 
 def addGrade(trainingId, student, grade):
+    ret = Response()
     if trainingId == "" or student == "" or grade is None:
-        return "all fields must be filled"
-    if grade > 10 or grade < 0:
-        return "grade is incorrect"
+        ret.msgType = "error"
+        ret.msg = "all fields must be filled"
+        return ret
+    if int(grade) > 10 or int(grade) < 0:
+        ret.msgType = "error"
+        ret.msg = "grade is incorrect"
+        return ret
     query = {
         'table': 'grades',
-        'condition': f'\'{student}\', \'{trainingId}\', \'{grade}\''
+        'condition': f'\'{trainingId}\', \'{student}\', \'{grade}\''
     }
-    return tryQuery(query, 'insert')
+    ret.data = tryQuery(query, 'insert')
+    return ret
 
-def editGrade()
- 
-# Make a regular expression
-# for validating an Email
+def editGrade(trainingId, student, grade):
+    conn = getDbConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    ret = Response()
+    if grade is None:
+        ret.msgType = "error"
+        ret.msg = "grade must be filled"
+        return ret
+    if int(grade) > 10 or int(grade) < 0:
+        ret.msgType = "error"
+        ret.msg = "grade is incorrect"
+        return ret
+    cur.execute(f'UPDATE grades SET grade = {grade} WHERE user_login LIKE \'{student}\' AND training_id = {trainingId}')
+    ret.data = cur.rowcount
+    if ret.data != 1:
+        cur.execute(f'INSERT INTO grades (training_id, user_login, grade) VALUES(\'{trainingId}\', \'{student}\', \'{grade}\')')
+    ret.data = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return ret
+
+def deleteGrade(trainingId, student):
+    ret = Response()
+    query = {
+        'table': 'grades',
+        'condition': f'WHERE user_login LIKE \'{student}\' AND training_id = {trainingId}'
+    }
+    ret.data = tryQuery(query, 'delete')
+    return ret
+
+def addResult(trainingId, student, result):
+    ret = Response()
+    if trainingId == "" or student == "" or result is None:
+        ret.msgType = "error"
+        ret.msg = "all fields must be filled"
+        return ret
+    if result == "":
+        ret.msgType = "error"
+        ret.msg = "result is incorrect"
+        return ret
+    query = {
+        'table': 'results',
+        'condition': f'\'{trainingId}\', \'{student}\', \'{result}\''
+    }
+    ret.data = tryQuery(query, 'insert')
+    return ret
+
+def editResult(trainingId, student, result):
+    conn = getDbConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    ret = Response()
+    if result is None:
+        ret.msgType = "error"
+        ret.msg = "result must be filled"
+        return ret
+    if result == "":
+        ret.msgType = "error"
+        ret.msg = "result is incorrect"
+        return ret
+    cur.execute(f'UPDATE results SET result = {result} WHERE user_login LIKE \'{student}\' AND training_id = {trainingId}')
+    ret.data = cur.rowcount
+    if ret.data != 1:
+        cur.execute(f'INSERT INTO results (training_id, user_login, result) VALUES(\'{trainingId}\', \'{student}\', \'{result}\')')
+    ret.data = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return ret
+
+def deleteResult(trainingId, student):
+    ret = Response()
+    query = {
+        'table': 'results',
+        'condition': f'WHERE user_login LIKE \'{student}\' AND training_id = {trainingId}'
+    }
+    ret.data = tryQuery(query, 'delete')
+    return ret
+
+def enroll(student, club):
+    ret = Response()
+    query = {
+        'table': 'club_user',
+        'condition': f'\'{student}\', \'{club}\''
+    }
+    ret.data = tryQuery(query, 'insert')
+    return ret
+
+def leave(student, club):
+    ret = Response()
+    query = {
+        'table': 'club_user',
+        'condition': f'WHERE user_login LIKE \'{student}\' AND club LIKE \'{club}\''
+    }
+    ret.data = tryQuery(query, 'delete')
+    return ret
+
+def getTrainerAthletes(trainer):
+    ret = Response()
+    query = {
+        'table': 'user_trainer',
+        'columns': 'user_login',
+        'condition': f'WHERE trainer_login LIKE \'{trainer}\' ORDER BY user_login DESC'
+    }
+    ret.data = tryQuery(query, 'select')
+    return ret
+
+def getTrainerClubAthletes(trainer, club):
+    ret = Response()
+    conn = getDbConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    query = f"""
+        SELECT ut.user_login
+        FROM user_trainer ut
+        JOIN club_user cu
+        ON ut.user_login = cu.user_login
+        WHERE cu.club LIKE \'{club}\' AND ut.trainer_login LIKE \'{trainer}\'
+        ORDER BY ut.user_login DESC
+    """
+    cur.execute(query)
+    ret.data = cur.fetchall()
+    cur.close()
+    conn.close()
+    return ret
+
+def getTrainerClubAthletesWithoutGrade(trainer, club, trainingId):
+    ret = Response()
+    conn = getDbConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    query = f"""
+        SELECT ut.user_login
+        FROM user_trainer ut
+        JOIN club_user cu
+        ON ut.user_login = cu.user_login
+        WHERE cu.club LIKE \'{club}\' AND ut.trainer_login LIKE \'{trainer}\' AND ut.user_login NOT IN (
+            SELECT user_login
+            FROM grades
+            WHERE training_id = {trainingId}
+        )
+        ORDER BY ut.user_login DESC
+    """
+    print(query, file=sys.stderr)
+    cur.execute(query)
+    ret.data = cur.fetchall()
+    print(ret.data, file=sys.stderr)
+    cur.close()
+    conn.close()
+    return ret
+
+def getTrainerClubAthletesWithoutResult(trainer, club, trainingId):
+    ret = Response()
+    conn = getDbConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    query = f"""
+        SELECT ut.user_login
+        FROM user_trainer ut
+        JOIN club_user cu
+        ON ut.user_login = cu.user_login
+        WHERE cu.club LIKE \'{club}\' AND ut.trainer_login LIKE \'{trainer}\' AND ut.user_login NOT IN (
+            SELECT user_login
+            FROM results
+            WHERE training_id = {trainingId}
+        )
+        ORDER BY ut.user_login DESC
+    """
+    cur.execute(query)
+    ret.data = cur.fetchall()
+    cur.close()
+    conn.close()
+    return ret
+
+def addPicture(user, picture):
+    ret = Response()
+    conn = getDbConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    picture = picture.replace('\'', '\'\'')
+    cur.execute(f"UPDATE users set picture = \'{picture}\' WHERE login LIKE \'{user}\';")
+    ret.data = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return ret
+
+def getPicture(user):
+    ret = Response()
+    query = {
+        'table': 'users',
+        'columns': 'picture',
+        'condition': f'WHERE login LIKE \'{user}\''
+    }
+    ret.data = tryQuery(query, 'select')
+    return ret

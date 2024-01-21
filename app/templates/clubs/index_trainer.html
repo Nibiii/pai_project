@@ -1,0 +1,55 @@
+{% include 'head.html' %}
+{% include 'header.html' %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8 mb-8 mb-lg-10">
+        {% if msg is not none %}
+        <div style="background-color: lightgray; border-radius: 20px; padding-left: 20px; border: solid 2px grey">
+            {% if msgType == "error" %}
+            <h3 style="color: red">Error</h3>
+            <p style="color: red">{{ msg }}</p>
+            {% else %}
+            <h3 style="color: green">Info</h3>
+            <p style="color: green">{{ msg }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        <h4 class="text-center">Results</h4>
+        <a href="{{ url_for('clubs.new', shortname=shortname) }}"><button class="btn btn-outline-success">New Training</button></a>
+        <br/><br/>
+        <div class="overflow-auto p-3 bg-light" style="max-width: auto; max-height: 500px;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Time</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Details</th>
+                        <th scope="col">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if results is not none %}
+                    {% for result in results %}
+                    <tr>
+                        <td>{{ result['date'] }}</td>
+                        <td>{{ result['time'] }}</td>
+                        <td>{{ result['name'] }}</td>
+                        <td>
+                            <a style="text-decoration:none;" href="{{ url_for('clubs.describe', id=result['id'], shortname=shortname) }}">
+                            <button type="button" class="btn btn-outline-warning">Details</button>
+                            </a>
+                        </td>
+                        <td>
+                            <a style="text-decoration:none;" href="{{ url_for('clubs.delete', id=result['id'], shortname=shortname) }}">
+                            <button type="button" class="btn btn-outline-danger">Delete</button>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% include 'footer.html' %}

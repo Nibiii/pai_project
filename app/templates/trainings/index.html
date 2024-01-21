@@ -1,0 +1,88 @@
+{% include 'head.html' %}
+{% include 'header.html' %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8 mb-8 mb-lg-10">
+        {% if msg is not none %}
+        <div style="background-color: lightgray; border-radius: 20px; padding-left: 20px; border: solid 2px grey">
+            {% if msgType == "error" %}
+            <h3 style="color: red">Error</h3>
+            <p style="color: red">{{ msg }}</p>
+            {% else %}
+            <h3 style="color: green">Info</h3>
+            <p style="color: green">{{ msg }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% if training is not none %}
+        <h4 class="text-center">Training Details</h4>
+        <a href="{{ url_for('clubs.delete', id=training['id'], shortname=shortname) }}"><button class="btn btn-outline-success">Delete Training</button></a>
+        <a href="{{ url_for('clubs.result', id=training['id'], shortname=shortname) }}"><button class="btn btn-outline-success">Add Result</button></a>
+        <a href="{{ url_for('clubs.grade', id=training['id'], shortname=shortname) }}"><button class="btn btn-outline-success">Add Grade</button></a>
+        <br /><br />
+        <div class="overflow-auto p-3 bg-light" style="max-width: auto; max-height: 500px;">
+            <h5 style="line-height: 150%;">
+                <span style="font-weight: bold;">Name: </span><span>{{ training['name'] }}</span><br />
+                <span style="font-weight: bold;">Date: </span><span>{{ training['date'] }}</span><br />
+                <span style="font-weight: bold;">Time: </span><span>{{ training['time'] }}</span><br />
+                <span style="font-weight: bold;">Description: </span><span>{{ training['description'] }}</span><br />
+            </h5>
+
+            <div class="overflow-auto p-3 bg-light" style="max-width: auto; max-height: 500px;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Athlete</th>
+                            <th scope="col">Result</th>
+                            <th scope="col">Grade</th>
+                            <th scope="col">Edit Result</th>
+                            <th scope="col">Edit Grade</th>
+                            <th scope="col">Delete Result</th>
+                            <th scope="col">Delete Grade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% if grades is not none %}
+                    {% for grade in grades %}
+                        <tr>
+                            <th scope="row">{{ grade['user_login'] }}</th>
+                            <td>{{ grade['result'] }}</td>
+                            <td>{{ grade['grade'] }}</td>
+                            <td><a style="text-decoration:none;" href="{{ url_for('clubs.editResult', id=training['id'], user=grade['user_login'], shortname=shortname) }}">
+                                <button type="button" class="btn btn-outline-warning">&#128393;</button>
+                            </a></td>
+                            <td><a style="text-decoration:none;" href="{{ url_for('clubs.editGrade', id=training['id'], user=grade['user_login'], shortname=shortname) }}">
+                                <button type="button" class="btn btn-outline-warning">&#128393;</button>
+                            </a></td>
+                            <td><a style="text-decoration:none;" href="{{ url_for('clubs.deleteResult', id=training['id'], user=grade['user_login'], shortname=shortname) }}">
+                                <button type="button" class="btn btn-outline-danger">&#10005;</button>
+                            </a></td>
+                            <td><a style="text-decoration:none;" href="{{ url_for('clubs.deleteGrade', id=training['id'], user=grade['user_login'], shortname=shortname) }}">
+                                <button type="button" class="btn btn-outline-danger">&#10005;</button>
+                            </a></td>
+                        </tr>
+                    {% endfor %}
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="overflow-auto p-3 bg-light" style="max-width: auto; max-height: 500px;">
+                <ul class="list-group">
+                    <li class="list-group-item">
+                        <span>Results: </span><span class="pull-right">{{ numbers['resultCount'] }}</span><br/>
+                    </li>
+                    <li class="list-group-item">
+                        <span>Grades: </span><span class="pull-right">{{ numbers['gradeCount'] }}</span><br/>
+                    </li>
+                    <li class="list-group-item">
+                        <span>Avg result: </span><span class="pull-right">{{ numbers['resultAvg'] }}</span><br/>
+                    </li>
+                    <li class="list-group-item">
+                        <span>Avg grade: </span><span class="pull-right">{{ numbers['gradeAvg'] }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% include 'footer.html' %}
